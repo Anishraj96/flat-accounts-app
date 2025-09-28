@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Flat Accounts — Simple Ledger (With Users)</title>
+  <!--
+    Instructions (for GitHub hosting + DB):
+    1) This is a single-file demo that enforces simple username/password auth and admin-only delete using browser storage.
+    2) For a real multi-user setup with a centralized database and GitHub Pages hosting, deploy this frontend to GitHub Pages and use a backend (Firebase, Supabase, or a Node.js server with PostgreSQL/SQLite) to store transactions and users. See the chat notes after saving this file for exact steps.
+  -->
+  <style>
+    :root{--bg:#0f1724;--card:#0b1220;--muted:#94a3b8;--accent:#06b6d4;--success:#10b981}
+    *{box-sizing:border-box;font-family:Inter, system-ui, Arial, sans-serif}
+    body{margin:0;background:linear-gradient(180deg,#071027 0%,#081226 100%);color:#e6eef6;min-height:100vh;padding:20px}
+    .wrap{max-width:980px;margin:0 auto}
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+    header h1{font-size:20px;margin:0}
+    .card{background:rgba(255,255,255,0.03);padding:16px;border-radius:12px;box-shadow:0 6px 20px rgba(2,6,23,0.6)}
+    form{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .full{grid-column:1/-1}
+    label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+    input[type=text],input[type=password],input[type=date],input[type=number],select,textarea{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:inherit}
+    input[type=file]{color:var(--muted)}
+    button{padding:10px 12px;border-radius:10px;border:0;background:linear-gradient(90deg,var(--accent),#7C3AED);color:#021927;font-weight:600;cursor:pointer}
+    .controls{display:flex;gap:8px;align-items:center}
+    .list{margin-top:16px}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:10px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.03);font-size:14px}
+    .type-in{color:var(--success);font-weight:600}
+    .type-out{color:#fb7185;font-weight:600}
+    .thumb{width:56px;height:40px;object-fit:cover;border-radius:6px;border:1px solid rgba(255,255,255,0.04)}
+    .actions{display:flex;gap:8px}
+    .muted{color:var(--muted);font-size:13px}
+    footer{margin-top:16px;display:flex;justify-content:space-between;align-items:center}
+    .topbar{display:flex;gap:8px;align-items:center}
+    .hidden{display:none}
+    @media(max-width:720px){form{grid-template-columns:1fr}header{flex-direction:column;align-items:flex-start;gap:8px}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Flat Accounts — Simple Ledger</h1>
+      <div class="muted">Records transactions, upload receipt images, export CSV/JSON — now with users</div>
+    </header>
+
+    <section class="card">
+      <div id="authArea" class="full">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px">
+          <div class="topbar">
+            <div id="loggedInAs" class="muted"></div>
+          </div>
+          <div class="controls" id="authControls">
+            <button id="showLogin">Login</button>
+            <button id="showRegister">Register</button>
+          </div>
+        </div>
+
+        <!-- Login / Register panels -->
+        <div id="panels">
+          <form id="loginForm" class="hidden" style="margin-bottom:12px">
+            <label>Username</label>
+            <input id="loginUser" type="text" required />
+            <label>Password</label>
+            <input id="loginPass" type="password" required />
+            <div class="controls" style="margin-top:8px">
+              <button type="submit">Login</button>
+              <button type="button" id="cancelLogin">Cancel</button>
+            </div>
+          </form>
+
+          <form id="regForm" class="hidden" style="margin-bottom:12px">
+            <label>Username</label>
+            <input id="regUser" type="text" required />
+            <label>Password</label>
+            <input id="regPass" type="password" required />
+            <label><input id="regAdmin" type="checkbox" /> Make this user an admin</label>
+            <div class="controls" style="margin-top:8px">
+              <button type="submit">Create user</button>
+              <button type="button" id="cancelReg">Cancel</button>
+            </div>
+          </form>
+        </div>
+
+      </div>
+
+      <form id="txForm" class="hidden">
+        <div>
+          <label for="date">Date</label>
+          <input id="date" type="date" required />
+        </div>
+        <div>
+          <label for="type">Type</label>
+          <select id="type">
+            <option value="expense">Expense</option>
+            <option value="income">Income</option>
+          </select>
+        </div>
+        <div>
+          <label for="amount">Amount (₹)</label>
+          <input id="amount" type="number" step="0.01" required />
+        </div>
+        <div>
+          <label for="category">Category</label>
+          <input id="category" type="text" placeholder="Maintenance, Electricity, Rent..." />
+        </div>
+        <div class="full">
+          <label for="desc">Description</label>
+          <textarea id="desc" rows="2" placeholder="Optional details..."></textarea>
+        </div>
+        <div>
+          <label for="receipt">Upload receipt / image</label>
+          <input id="receipt" type="file" accept="image/*" />
+        </div>
+        <div class="controls">
+          <button id="saveBtn" type="submit">Add Transaction</button>
+          <button id="clearBtn" type="button">Clear Form</button>
+        </div>
+      </form>
+
+      <div class="list">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <strong>Transactions</strong>
+          <div class="controls">
+            <button id="exportCsv">Export CSV</button>
+            <button id="exportJson">Export JSON</button>
+            <button id="clearAll" style="background:#ef4444;color:#fff">Delete All</button>
+          </div>
+        </div>
+        <div class="card" style="padding:6px">
+          <table id="txTable">
+            <thead>
+              <tr><th>Date</th><th>Type</th><th>Category</th><th>Amount</th><th>Receipt</th><th>User</th><th></th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <footer>
+          <div class="muted" id="summary"></div>
+          <div class="muted">Local demo — data stored in your browser. For multi-user hosting, connect a backend database.</div>
+        </footer>
+      </div>
+    </section>
+
+    <section class="card" style="margin-top:12px">
+      <strong>Admin tools</strong>
+      <div style="margin-top:8px" class="muted">Create initial admin user, import/export DB, or reset demo data.</div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button id="createAdmin">Create default admin (admin/admin)</button>
+        <button id="exportDb">Download DB (JSON)</button>
+        <input id="importFile" type="file" accept="application/json" />
+      </div>
+    </section>
+
+  </div>
+
+  <script>
+    // Storage keys
+    const USERS_KEY = 'flat_accounts_users_v1';
+    const TX_KEY = 'flat_accounts_tx_v1';
+    const CURRENT_USER = 'flat_accounts_curuser_v1';
+
+    // Elements
+    const panels = document.getElementById('panels');
+    const loginForm = document.getElementById('loginForm');
+    const regForm = document.getElementById('regForm');
+    const showLogin = document.getElementById('showLogin');
+    const showRegister = document.getElementById('showRegister');
+    const cancelLogin = document.getElementById('cancelLogin');
+    const cancelReg = document.getElementById('cancelReg');
+    const authControls = document.getElementById('authControls');
+    const loggedInAs = document.getElementById('loggedInAs');
+
+    const txForm = document.getElementById('txForm');
+    const tableBody = document.querySelector('#txTable tbody');
+    const exportCsvBtn = document.getElementById('exportCsv');
+    const exportJsonBtn = document.getElementById('exportJson');
+    const clearAllBtn = document.getElementById('clearAll');
+
+    const createAdminBtn = document.getElementById('createAdmin');
+    const exportDbBtn = document.getElementById('exportDb');
+    const importFile = document.getElementById('importFile');
+
+    // State
+    let users = loadUsers();
+    let txs = loadTxs();
+    let currentUser = loadCurrentUser();
+
+    // Initialize
+    updateAuthUI(); render();
+
+    // Auth UI handlers
+    showLogin.addEventListener('click', ()=>{ loginForm.classList.remove('hidden'); regForm.classList.add('hidden'); });
+    showRegister.addEventListener('click', ()=>{ regForm.classList.remove('hidden'); loginForm.classList.add('hidden'); });
+    cancelLogin.addEventListener('click', ()=>loginForm.classList.add('hidden'));
+    cancelReg.addEventListener('click', ()=>regForm.classList.add('hidden'));
+
+    loginForm.addEventListener('submit',(e)=>{
+      e.preventDefault();
+      const u = document.getElementById('loginUser').value.trim();
+      const p = document.getElementById('loginPass').value;
+      if(authenticate(u,p)){
+        setCurrentUser(u);
+        loginForm.reset(); loginForm.classList.add('hidden');
+        updateAuthUI(); render();
+      } else alert('Invalid user or password');
+    });
+
+    regForm.addEventListener('submit',(e)=>{
+      e.preventDefault();
+      const u = document.getElementById('regUser').value.trim();
+      const p = document.getElementById('regPass').value;
+      const isAdmin = document.getElementById('regAdmin').checked;
+      if(!u || !p) return alert('Username and password required');
+      if(users.some(x=>x.username===u)) return alert('User exists');
+      users.push({username:u,password:hash(p),admin:!!isAdmin}); saveUsers();
+      alert('User created'); regForm.reset(); regForm.classList.add('hidden');
+    });
+
+    // Public actions
+    document.getElementById('clearBtn').addEventListener('click', ()=>txForm.reset());
+    exportJsonBtn.addEventListener('click', ()=>download('flat_accounts.json', JSON.stringify(txs, null, 2)));
+    exportCsvBtn.addEventListener('click', ()=>download('flat_accounts.csv', toCSV(txs)));
+    clearAllBtn.addEventListener('click', ()=>{ if(!requireAdmin()) return; if(confirm('Delete all transactions?')){txs=[];saveTxs();render();}});
+
+    txForm.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      if(!currentUser) return alert('Please login to add transactions');
+      const date = document.getElementById('date').value || new Date().toISOString().slice(0,10);
+      const type = document.getElementById('type').value;
+      const amount = parseFloat(document.getElementById('amount').value) || 0;
+      const category = document.getElementById('category').value.trim();
+      const desc = document.getElementById('desc').value.trim();
+      const fileInput = document.getElementById('receipt');
+      let receiptData = null;
+      if(fileInput.files && fileInput.files[0]){
+        receiptData = await fileToDataURL(fileInput.files[0]);
+      }
+      const tx = {id:cryptoRandomId(),date,type,amount,category,desc,receipt:receiptData,user:currentUser};
+      txs.unshift(tx);
+      saveTxs();
+      txForm.reset();
+      render();
+    });
+
+    createAdminBtn.addEventListener('click', ()=>{
+      if(users.some(u=>u.admin)) return alert('An admin already exists');
+      users.push({username:'admin',password:hash('admin'),admin:true}); saveUsers(); alert('Default admin created: admin / admin'); updateAuthUI();
+    });
+
+    exportDbBtn.addEventListener('click', ()=>{
+      const dump = {users,txs}; download('flat_accounts_db.json', JSON.stringify(dump,null,2));
+    });
+
+    importFile.addEventListener('change', (e)=>{
+      const f = e.target.files[0]; if(!f) return; const r = new FileReader();
+      r.onload = ()=>{
+        try{ const data = JSON.parse(r.result); if(data.users) users = data.users; if(data.txs) txs = data.txs; saveUsers(); saveTxs(); alert('Imported'); updateAuthUI(); render(); }catch(err){alert('Invalid file')}
+      }; r.readAsText(f);
+    });
+
+    // Helpers and storage
+    function saveUsers(){ localStorage.setItem(USERS_KEY, JSON.stringify(users)); }
+    function loadUsers(){ try{return JSON.parse(localStorage.getItem(USERS_KEY))||[] }catch(e){return []} }
+    function saveTxs(){ localStorage.setItem(TX_KEY, JSON.stringify(txs)); }
+    function loadTxs(){ try{return JSON.parse(localStorage.getItem(TX_KEY))||[] }catch(e){return []} }
+    function setCurrentUser(u){ localStorage.setItem(CURRENT_USER, u); currentUser = u; }
+    function loadCurrentUser(){ return localStorage.getItem(CURRENT_USER) || null; }
+    function clearCurrentUser(){ localStorage.removeItem(CURRENT_USER); currentUser = null; }
+    function hash(s){ return btoa(unescape(encodeURIComponent(s))); } // not secure — demo only
+    function authenticate(u,p){ const user = users.find(x=>x.username===u); return user && user.password===hash(p); }
+    function isAdmin(u){ const user = users.find(x=>x.username===u); return user && user.admin; }
+    function requireAdmin(){ if(!currentUser) return alert('Login as admin to perform this action'), false; if(!isAdmin(currentUser)) return alert('Admin only'), false; return true; }
+
+    function updateAuthUI(){
+      if(currentUser){
+        loggedInAs.textContent = `Logged in as: ${currentUser} ${isAdmin(currentUser)?'(admin)':''}`;
+        authControls.innerHTML = `<button id="logoutBtn">Logout</button>`;
+        document.getElementById('logoutBtn').addEventListener('click', ()=>{ clearCurrentUser(); updateAuthUI(); render(); });
+        txForm.classList.remove('hidden');
+      } else {
+        loggedInAs.textContent = '';
+        authControls.innerHTML = `<button id="showLogin">Login</button><button id="showRegister">Register</button>`;
+        document.getElementById('showLogin').addEventListener('click', ()=>{ loginForm.classList.remove('hidden'); regForm.classList.add('hidden'); });
+        document.getElementById('showRegister').addEventListener('click', ()=>{ regForm.classList.remove('hidden'); loginForm.classList.add('hidden'); });
+        txForm.classList.add('hidden');
+      }
+    }
+
+    function render(){
+      tableBody.innerHTML='';
+      let income=0,expense=0;
+      for(const tx of txs){
+        const tr = document.createElement('tr');
+        const receiptCell = document.createElement('td');
+        if(tx.receipt){
+          const img = document.createElement('img'); img.src=tx.receipt; img.className='thumb'; receiptCell.appendChild(img);
+        } else { receiptCell.textContent = '-'; receiptCell.className='muted' }
+
+        tr.innerHTML = `<td>${tx.date}</td><td class="${tx.type==='income'?'type-in':'type-out'}">${tx.type}</td><td>${escapeHtml(tx.category||'')}</td><td>₹ ${tx.amount.toFixed(2)}</td>`;
+        tr.appendChild(receiptCell);
+        const userTd = document.createElement('td'); userTd.textContent = tx.user||'-'; tr.appendChild(userTd);
+
+        const actTd = document.createElement('td'); actTd.className='actions';
+        const viewBtn = document.createElement('button'); viewBtn.textContent='View'; viewBtn.style.background='transparent'; viewBtn.style.border='1px solid rgba(255,255,255,0.04)'; viewBtn.style.color='inherit';
+        viewBtn.onclick = ()=> showDetails(tx);
+        actTd.appendChild(viewBtn);
+
+        // delete button only visible to admin users
+        if(currentUser && isAdmin(currentUser)){
+          const delBtn = document.createElement('button'); delBtn.textContent='Delete'; delBtn.style.background='transparent'; delBtn.style.border='1px solid rgba(255,255,255,0.04)'; delBtn.style.color='inherit';
+          delBtn.onclick = ()=>{ if(confirm('Delete this transaction?')){ txs = txs.filter(t=>t.id!==tx.id); saveTxs(); render(); }};
+          actTd.appendChild(delBtn);
+        }
+
+        tr.appendChild(actTd);
+        tableBody.appendChild(tr);
+        if(tx.type==='income') income += tx.amount; else expense += tx.amount;
+      }
+      document.getElementById('summary').textContent = `Income: ₹ ${income.toFixed(2)}  •  Expense: ₹ ${expense.toFixed(2)}  •  Balance: ₹ ${(income-expense).toFixed(2)}`;
+    }
+
+    function cryptoRandomId(){ return 'id_'+Math.random().toString(36).slice(2,9); }
+    function fileToDataURL(file){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(file); }) }
+    function download(filename, text){ const a=document.createElement('a'); a.href='data:application/octet-stream;base64,'+btoa(unescape(encodeURIComponent(text))); a.download=filename; document.body.appendChild(a); a.click(); a.remove(); }
+    function toCSV(rows){ if(!rows||!rows.length) return ''; const keys=['id','date','type','category','amount','desc','user','receipt']; const lines=[keys.join(',')]; for(const r of rows){ const vals=keys.map(k=>`"${(r[k]||'').toString().replace(/"/g,'""')}"`); lines.push(vals.join(',')); } return lines.join('
+'); }
+    function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c])); }
+
+    function showDetails(tx){
+      const w = window.open('','_blank','width=560,height=640');
+      const html = `<!doctype html><html><head><meta charset="utf-8"><title>Details</title>
+        <style>body{font-family:Inter,Arial;background:#081226;color:#e6eef6;padding:18px} img{max-width:100%;border-radius:8px} .meta{margin-top:12px;color:#9fb0c6}</style></head><body>
+        <h3>Transaction details</h3>
+        <div class="meta"><strong>Date:</strong> ${tx.date}<br><strong>Type:</strong> ${tx.type}<br><strong>Category:</strong> ${escapeHtml(tx.category)}<br><strong>Amount:</strong> ₹ ${tx.amount.toFixed(2)}<br><strong>Description:</strong> ${escapeHtml(tx.desc)}<br><strong>User:</strong> ${escapeHtml(tx.user||'')}</div>
+        ${tx.receipt?`<h4>Receipt</h4><img src="${tx.receipt}" alt="receipt">`:''}
+        </body></html>`;
+      w.document.write(html); w.document.close();
+    }
+
+  </script>
+</body>
+</html>
