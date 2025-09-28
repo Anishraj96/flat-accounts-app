@@ -17,7 +17,7 @@ body {
 
 h1 {
     text-align: center;
-    margin-bottom: 30px;
+    margin-bottom: 40px;
     font-family: 'Playfair Display', serif;
     font-size: 2.8em;
     color: gold;
@@ -30,14 +30,14 @@ h1 {
     flex-wrap: wrap;
     justify-content: center;
     gap: 25px;
-    margin-bottom: 40px;
+    margin-bottom: 50px;
 }
 .card {
-    background: rgba(255, 215, 0, 0.1); /* glassmorphism gold tint */
+    background: rgba(255, 215, 0, 0.1);
     backdrop-filter: blur(10px);
     padding: 25px 30px;
     border-radius: 20px;
-    min-width: 200px;
+    min-width: 220px;
     text-align: center;
     box-shadow: 0 8px 30px rgba(0,0,0,0.5);
     transition: transform 0.3s, box-shadow 0.3s;
@@ -49,38 +49,48 @@ h1 {
 .card h3 { margin-bottom: 12px; font-family: 'Playfair Display', serif; font-size: 1.2em; color: gold; }
 .card p { font-size: 1.8em; font-weight: bold; color: #fff; }
 
-/* Form Styling */
+/* Form & Filter Containers */
 .form-card {
     background: rgba(255, 255, 255, 0.05);
     backdrop-filter: blur(12px);
-    padding: 25px;
+    padding: 25px 30px;
     border-radius: 20px;
-    max-width: 500px;
+    max-width: 600px;
     margin: 0 auto 40px auto;
     box-shadow: 0 8px 30px rgba(0,0,0,0.5);
 }
-input, select, button {
-    width: 100%;
-    padding: 14px;
-    margin: 12px 0;
+
+/* Align Form Controls in Columns */
+.form-card form,
+.form-card .filter-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+.form-card input, 
+.form-card select {
+    flex: 1 1 45%;
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+    padding: 12px;
     border-radius: 12px;
     border: none;
     font-size: 16px;
-    outline: none;
 }
-input, select {
-    background: rgba(255,255,255,0.1);
-    color: #fff;
-}
-input::placeholder { color: #ddd; }
-button {
+.form-card button {
+    flex: 1 1 100%;
     background: linear-gradient(135deg, #FFD700, #FFA500);
     color: #111;
     font-weight: bold;
     cursor: pointer;
+    padding: 14px;
+    border-radius: 12px;
+    border: none;
     transition: 0.3s;
 }
-button:hover { background: linear-gradient(135deg, #FFA500, #FFD700); }
+.form-card button:hover {
+    background: linear-gradient(135deg, #FFA500, #FFD700);
+}
 
 /* Table Styling */
 table {
@@ -102,6 +112,7 @@ th {
 tr:nth-child(even) { background: rgba(255,255,255,0.03); }
 tr:hover { background: rgba(255,255,255,0.1); }
 
+/* Action Buttons */
 .action-btn {
     padding: 6px 12px;
     border-radius: 8px;
@@ -110,16 +121,18 @@ tr:hover { background: rgba(255,255,255,0.1); }
     font-weight: bold;
     border: none;
     transition: 0.3s;
-}
-.edit-btn {
-    background: linear-gradient(135deg, #28a745, #1e7b31);
     margin-right: 5px;
 }
+.edit-btn { background: linear-gradient(135deg, #28a745, #1e7b31); }
 .edit-btn:hover { background: linear-gradient(135deg, #1e7b31, #28a745); }
-.delete-btn {
-    background: linear-gradient(135deg, #dc3545, #a71d2a);
-}
+.delete-btn { background: linear-gradient(135deg, #dc3545, #a71d2a); }
 .delete-btn:hover { background: linear-gradient(135deg, #a71d2a, #dc3545); }
+
+/* Responsive Table */
+@media(max-width: 768px){
+    .form-card input, .form-card select { flex: 1 1 100%; }
+    .dashboard { flex-direction: column; align-items: center; }
+}
 
 </style>
 </head>
@@ -127,41 +140,54 @@ tr:hover { background: rgba(255,255,255,0.1); }
 
 <h1>Sri Divyam Apartments Transaction Dashboard</h1>
 
+<!-- Dashboard -->
 <div class="dashboard">
     <div class="card">
         <h3>Total Credit</h3>
-        <p id="totalCredit">0</p>
+        <p id="totalCredit">₹0</p>
     </div>
     <div class="card">
         <h3>Total Debit</h3>
-        <p id="totalDebit">0</p>
+        <p id="totalDebit">₹0</p>
     </div>
     <div class="card">
         <h3>Net Balance</h3>
-        <p id="netBalance">0</p>
+        <p id="netBalance">₹0</p>
     </div>
 </div>
 
+<!-- Add/Edit Form -->
 <div class="form-card">
-  <form id="transactionForm">
-      <input type="hidden" id="transactionId">
-      <input type="text" id="transactionName" placeholder="Transaction Name" required>
-      <input type="text" id="residentName" placeholder="Resident Name" required>
-      <select id="transactionType">
-          <option value="credit">Credit</option>
-          <option value="debit">Debit</option>
-      </select>
-      <input type="number" id="amount" placeholder="Amount" required>
-      <button type="submit">Save Transaction</button>
-  </form>
+    <form id="transactionForm">
+        <input type="hidden" id="transactionId">
+        <input type="text" id="transactionName" placeholder="Transaction Name" required>
+        <input type="text" id="residentName" placeholder="Recorded by" required>
+        <select id="transactionType">
+            <option value="credit">Credit</option>
+            <option value="debit">Debit</option>
+        </select>
+        <input type="number" id="amount" placeholder="Amount (₹)" required>
+        <button type="submit">Save Transaction</button>
+    </form>
 </div>
 
+<!-- Filter Controls -->
+<div class="form-card">
+    <div class="filter-controls">
+        <input type="date" id="startDate">
+        <input type="date" id="endDate">
+        <button type="button" onclick="filterTransactions()">Show Transactions</button>
+        <button type="button" onclick="clearFilter()" style="background:linear-gradient(135deg,#555,#333); color:#fff;">Clear Filter</button>
+    </div>
+</div>
+
+<!-- Transactions Table -->
 <h2 style="color:gold; text-align:center; margin-bottom:20px;">Recent Transactions</h2>
 <table id="transactionTable">
     <thead>
         <tr>
             <th>Transaction Name</th>
-            <th>Resident Name</th>
+            <th>Recorded by</th>
             <th>Type</th>
             <th>Amount</th>
             <th>Date</th>
@@ -174,7 +200,7 @@ tr:hover { background: rgba(255,255,255,0.1); }
 <script>
 var PASSWORD = "956696";
 var transactions = JSON.parse(localStorage.getItem('transactions')) || [];
-if (!Array.isArray(transactions)) transactions = [];
+if(!Array.isArray(transactions)) transactions = [];
 
 var form = document.getElementById('transactionForm');
 var transactionTable = document.getElementById('transactionTable').getElementsByTagName('tbody')[0];
@@ -182,33 +208,33 @@ var totalCreditEl = document.getElementById('totalCredit');
 var totalDebitEl = document.getElementById('totalDebit');
 var netBalanceEl = document.getElementById('netBalance');
 
-function renderTransactions() {
-    transactionTable.innerHTML = '';
-    for (var i=0;i<transactions.length;i++){
+function renderTransactions(){
+    transactionTable.innerHTML='';
+    for(var i=0;i<transactions.length;i++){
         var tx = transactions[i];
         var row = document.createElement('tr');
-        var actions = '<button class="action-btn edit-btn" onclick="editTransaction(\''+tx.id+'\')">Edit</button>'+
-                      '<button class="action-btn delete-btn" onclick="deleteTransaction(\''+tx.id+'\')">Delete</button>';
-        row.innerHTML = '<td>'+tx.name+'</td><td>'+tx.resident+'</td><td>'+tx.type+'</td><td>'+tx.amount+'</td><td>'+tx.date+'</td><td>'+actions+'</td>';
+        row.innerHTML = '<td>'+tx.name+'</td><td>'+tx.resident+'</td><td>'+tx.type+'</td><td>₹'+tx.amount+'</td><td>'+tx.date+'</td>'+
+                        '<td><button class="action-btn edit-btn" onclick="editTransaction(\''+tx.id+'\')">Edit</button>'+
+                        '<button class="action-btn delete-btn" onclick="deleteTransaction(\''+tx.id+'\')">Delete</button></td>';
         transactionTable.appendChild(row);
     }
 }
 
 function renderSummary(){
     var totalCredit=0,totalDebit=0;
-    for (var i=0;i<transactions.length;i++){
+    for(var i=0;i<transactions.length;i++){
         var tx = transactions[i];
-        var amt=parseFloat(tx.amount);
+        var amt = parseFloat(tx.amount);
         if(tx.type==='credit') totalCredit+=amt;
         if(tx.type==='debit') totalDebit+=amt;
     }
-    totalCreditEl.innerHTML = totalCredit;
-    totalDebitEl.innerHTML = totalDebit;
-    netBalanceEl.innerHTML = totalCredit-totalDebit;
+    totalCreditEl.innerHTML = '₹' + totalCredit;
+    totalDebitEl.innerHTML = '₹' + totalDebit;
+    netBalanceEl.innerHTML = '₹' + (totalCredit - totalDebit);
 }
 
 // Add/Edit
-form.onsubmit=function(e){
+form.onsubmit = function(e){
     e.preventDefault();
     var id=document.getElementById('transactionId').value;
     var name=document.getElementById('transactionName').value.trim();
@@ -217,9 +243,11 @@ form.onsubmit=function(e){
     var amount=document.getElementById('amount').value;
     var date=new Date().toLocaleString();
     if(id){
-        for(var i=0;i<transactions.length;i++){if(transactions[i].id===id){transactions[i]={id:id,name:name,resident:resident,type:type,amount:amount,date:date}; break;}}
+        for(var i=0;i<transactions.length;i++){
+            if(transactions[i].id===id){transactions[i]={id:id,name:name,resident:resident,type:type,amount:amount,date:date}; break;}
+        }
     } else {
-        var newId=Date.now().toString();
+        var newId = Date.now().toString();
         transactions.push({id:newId,name:name,resident:resident,type:type,amount:amount,date:date});
     }
     localStorage.setItem('transactions',JSON.stringify(transactions));
@@ -233,31 +261,87 @@ form.onsubmit=function(e){
 function deleteTransaction(id){
     var pass = prompt("Enter password to delete transaction:");
     if(pass===PASSWORD){
-        var newTrans=[];
-        for(var i=0;i<transactions.length;i++){if(transactions[i].id!==id)newTrans.push(transactions[i]);}
-        transactions=newTrans;
+        transactions = transactions.filter(tx=>tx.id!==id);
         localStorage.setItem('transactions',JSON.stringify(transactions));
         renderTransactions();
         renderSummary();
-    } else {
-        alert("Incorrect password. Transaction not deleted.");
-    }
+    } else { alert("Incorrect password."); }
 }
 
 // Edit
 function editTransaction(id){
-    for(var i=0;i<transactions.length;i++){
-        if(transactions[i].id===id){
-            var tx=transactions[i];
-            document.getElementById('transactionId').value=tx.id;
-            document.getElementById('transactionName').value=tx.name;
-            document.getElementById('residentName').value=tx.resident;
-            document.getElementById('transactionType').value=tx.type;
-            document.getElementById('amount').value=tx.amount;
-            break;
-        }
+    var tx = transactions.find(tx=>tx.id===id);
+    if(tx){
+        document.getElementById('transactionId').value=tx.id;
+        document.getElementById('transactionName').value=tx.name;
+        document.getElementById('residentName').value=tx.resident;
+        document.getElementById('transactionType').value=tx.type;
+        document.getElementById('amount').value=tx.amount;
     }
 }
+
+// Filter
+function filterTransactions(){
+    var start=document.getElementById('startDate').value;
+    var end=document.getElementById('endDate').value;
+    if(!start||!end){ alert("Select start and end date"); return; }
+    var startDate = new Date(start);
+    var endDate = new Date(end); endDate.setHours(23,59,59,999);
+    var filtered = transactions.filter(tx=>{ var d = new Date(tx.date); return d>=startDate && d<=endDate; });
+    renderFiltered(filtered);
+}
+
+function renderFiltered(filtered){
+    transactionTable.innerHTML='';
+    filtered.forEach(tx=>{
+        var row=document.createElement('tr');
+        row.innerHTML='<td>'+tx.name+'</td><td>'+tx.resident+'</td><td>'+tx.type+'</td><td>₹'+tx.amount+'</td><td>'+tx.date+'</td>'+
+                      '<td><button class="action-btn edit-btn" onclick="editTransaction(\''+tx.id+'\')">Edit</button>'+
+                      '<button class="action-btn delete-btn" onclick="deleteTransaction(\''+tx.id+'\')">Delete</button></td>';
+        transactionTable.appendChild(row);
+    });
+    renderFilteredSummary(filtered);
+}
+
+function renderFilteredSummary(filtered){
+    var totalCredit=0,totalDebit=0;
+    filtered.forEach(tx=>{
+        var amt=parseFloat(tx.amount);
+        if(tx.type==='credit') totalCredit+=amt;
+        if(tx.type==='debit') totalDebit+=amt;
+    });
+    totalCreditEl.innerHTML = '₹' + totalCredit;
+    totalDebitEl.innerHTML = '₹' + totalDebit;
+    netBalanceEl.innerHTML = '₹' + (totalCredit-totalDebit);
+}
+
+function clearFilter(){
+    document.getElementById('startDate').value='';
+    document.getElementById('endDate').value='';
+    renderTransactions();
+    renderSummary();
+}
+
+function getCurrentMonthTransactions() {
+    var now = new Date();
+    var currentMonth = now.getMonth();
+    var currentYear = now.getFullYear();
+
+    return transactions.filter(tx => {
+        var txDate = new Date(tx.date);
+        return txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear;
+    });
+}
+
+function renderCurrentMonth() {
+    var currentMonthTx = getCurrentMonthTransactions();
+    renderFiltered(currentMonthTx); // uses the same function as filtered rendering
+    renderFilteredSummary(currentMonthTx);
+}
+
+// Replace initial render calls with:
+renderCurrentMonth();
+
 
 // Initial render
 renderTransactions();
